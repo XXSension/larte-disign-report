@@ -6,6 +6,7 @@ import { logger } from 'src/logger/logger';
 @Injectable()
 export class RequestAmoService {
   api: AxiosInstance;
+
   constructor(private accountService: AccountsService) {
     this.api = accountService.createConnector(30669042);
   }
@@ -137,7 +138,8 @@ export class RequestAmoService {
     return managersEvents.events.map((event) => event.entity_id);
   }
 
-  //Новые сделки
+  //Новые сделки getLead
+
   async getLead(): Promise<any> {
     return await this.api
       .get('/api/v4/leads', {
@@ -148,6 +150,7 @@ export class RequestAmoService {
         },
       })
       .then((response) => {
+        console.log(response.data._embedded.leads.length);
         if (response.data === '' || response.data === undefined) {
           return [];
         } else {
@@ -186,11 +189,12 @@ export class RequestAmoService {
           limit: 100,
           'filter[created_at][from]': new Date().setHours(0, 0, 0, 0) / 1000,
           'filter[value_after][leads_statuses][0][pipeline_id]': 6127214,
-          'filter[value_after][leads_statuses][0][status_id]': 53224242,
+          'filter[value_after][leads_statuses][0][status_id]': 53224246,
         },
       })
       .then((response) => {
-        if (response.data === '' || response.data === undefined) {
+        console.log(response.data._embedded.events);
+        if (response.data === '') {
           return [];
         } else {
           return response.data._embedded.events;
@@ -257,6 +261,20 @@ export class RequestAmoService {
           return [];
         } else {
           return response.data._embedded.events;
+        }
+      })
+      .catch((err) => logger.error(err)); //Количество событий
+  }
+
+  async budgetLeads(id) {
+    return await this.api
+      .get(`/api/v4/leads/${id}`)
+      .then((response) => {
+        console.log(response.data);
+        if (response.data === '' || response.data === undefined) {
+          return [];
+        } else {
+          return response.data.price;
         }
       })
       .catch((err) => logger.error(err)); //Количество событий

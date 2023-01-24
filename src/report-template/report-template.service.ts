@@ -47,7 +47,7 @@ export class ReportTemplateService {
 
   async ManagersReportTemplate(managers: Array<string>): Promise<string> {
     const [
-      newTask,
+      getLead,
       priceAnnouced,
       invoiceIssued,
       advancePaymentReceived,
@@ -61,9 +61,28 @@ export class ReportTemplateService {
       this.requestAmoService.successfullyImplemented(),
       this.requestAmoService.takenToWork(),
     ]);
+
     const arrayManagers = [];
     const arrayManagersSNG = [8983862, 8983870];
     const arrayManagersWorld = [8983842, 8983854, 8983866];
+    const priceSng = priceAnnouced.filter(
+      (e) => arrayManagersSNG.indexOf(e.created_by) !== -1,
+    );
+    const priceMIR = priceAnnouced.filter(
+      (e) => arrayManagersWorld.indexOf(e.created_by) !== -1,
+    );
+
+    let templateOtherManager = '';
+    templateOtherManager += `<strong>Неизвестный ОП</strong>: ${
+      getLead.length -
+      getLead.filter(
+        (event) => arrayManagersSNG.indexOf(event.responsible_user_id) !== -1,
+      ).length -
+      getLead.filter(
+        (event) => arrayManagersWorld.indexOf(event.responsible_user_id) !== -1,
+      ).length
+    } \n`;
+    arrayManagers.push(templateOtherManager);
 
     for (const manager of managers) {
       let template = '';
@@ -71,10 +90,9 @@ export class ReportTemplateService {
       if (manager === 'Отдел продаж РФ') {
         template += this.lineCreation(
           'Новых сделок',
-          newTask.filter(
+          getLead.filter(
             (event) =>
-              arrayManagersSNG.indexOf(event.created_by) !== -1 &&
-              event.status_id === 53017106,
+              arrayManagersSNG.indexOf(event.responsible_user_id) !== -1,
           ).length,
         );
         template += this.lineCreation(
@@ -91,7 +109,7 @@ export class ReportTemplateService {
         );
         template += this.lineCreation(
           'Сумма бюджетов перешедших в «Цена озвучена»',
-          this.budgetAmount(newTask, arrayManagersSNG, priceAnnouced),
+          await this.budgetAmount(priceSng),
         );
         template += this.lineCreation(
           'Перешедших в «Счет выставлен»',
@@ -114,18 +132,15 @@ export class ReportTemplateService {
       } else if (manager === 'Отдел продаж Мир') {
         template += this.lineCreation(
           'Новых сделок',
-          newTask.filter(
+          getLead.filter(
             (event) =>
-              arrayManagersWorld.indexOf(event.created_by) !== -1 &&
-              event.status_id === 53017106,
+              arrayManagersWorld.indexOf(event.responsible_user_id) !== -1,
           ).length,
         );
         template += this.lineCreation(
           'Взято в работу сделок',
-          newTask.filter(
-            (task) =>
-              arrayManagersWorld.indexOf(task.created_by) !== -1 &&
-              task.status_id === 53017114,
+          takenToWork.filter(
+            (task) => arrayManagersWorld.indexOf(task.created_by) !== -1,
           ).length,
         );
         template += this.lineCreation(
@@ -136,7 +151,7 @@ export class ReportTemplateService {
         );
         template += this.lineCreation(
           'Сумма бюджетов перешедших в «Цена озвучена»',
-          this.budgetAmount(newTask, arrayManagersWorld, priceAnnouced),
+          await this.budgetAmount(priceMIR),
         );
         template += this.lineCreation(
           'Перешедших в «Счет выставлен»',
@@ -201,23 +216,19 @@ export class ReportTemplateService {
   }
 
   //Счет суммы бюджета
-  budgetAmount(arrayLeads: Array<any>, array, arrayAdvancePayment: Array<any>) {
+  async budgetAmount(arrayLeads: Array<any>) {
     let counter = 0;
     if (arrayLeads.length === 0) {
       return 0;
     }
 
     // return 0;
-    arrayLeads.forEach((e) => {
-      for (const event of arrayAdvancePayment) {
-        if (
-          array.indexOf(e.created_by) !== -1 &&
-          event.value_after.lead_status.id === e.id
-        ) {
-          counter += e.price;
-        }
-      }
-    });
-    return counter;
+    for (const e of arrayLeads) {
+      const idLead = e.entity_id;
+      console.log(idLead);
+      const price = await this.requestAmoService.budgetLeads(idLead);
+      counter += price;
+    }
+    return this.AmountFormatting(counter);
   }
 }
